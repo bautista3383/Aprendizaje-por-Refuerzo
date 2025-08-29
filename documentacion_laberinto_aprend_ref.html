@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laberinto con Aprendizaje por Refuerzo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0a0a28; /* Similar al fondo del juego */
+            color: #e0e0ff;
+        }
+        .card {
+            background-color: #141440;
+            border: 1px solid #205096;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(32, 80, 150, 0.5);
+        }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-out;
+        }
+        .accordion-button.active + .accordion-content {
+            max-height: 1000px; /* Suficientemente grande para el contenido */
+        }
+        .code-snippet {
+            background-color: #050518;
+            border-left: 4px solid #facc15;
+            color: #a5b4fc;
+            white-space: pre-wrap;
+            font-size: 0.875rem;
+        }
+        .json-sim {
+            background-color: #050518;
+            border: 1px solid #205096;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            font-family: monospace;
+            font-size: 0.9rem;
+            white-space: pre;
+            overflow-x: auto;
+        }
+        .json-sim .key { color: #93c5fd; }
+        .json-sim .string { color: #a5b4fc; }
+        .json-sim .number { color: #facc15; }
+        .json-sim .comment { color: #6b7280; animation: fadeIn 1s ease-in-out; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="container mx-auto p-4 md:p-8">
+        
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold text-white mb-4">Análisis de un Agente Autónomo en Laberintos mediante Aprendizaje por Refuerzo</h1>
+            <p class="text-lg text-indigo-300 max-w-3xl mx-auto">Documentación técnica sobre la implementación de un agente inteligente para la resolución de problemas de navegación.</p>
+        </header>
+
+        <!-- Sección de Conceptos -->
+        <section id="conceptos" class="mb-16">
+            <h2 class="text-3xl font-bold text-center mb-8 text-yellow-300">Fundamentos del Aprendizaje por Refuerzo (RL)</h2>
+            <div class="grid md:grid-cols-2 gap-8 items-center">
+                <div>
+                    <p class="mb-4 text-lg">
+                        El Aprendizaje por Refuerzo es un área del Machine Learning donde un agente computacional aprende a tomar decisiones a través de la interacción directa con un entorno. A diferencia de otros paradigmas, no se le proveen datos etiquetados.
+                    </p>
+                    <p class="text-lg">
+                        El agente ejecuta acciones y recibe retroalimentación en forma de recompensas o penalizaciones. El objetivo del agente es desarrollar una política (una estrategia de toma de decisiones) que maximice la recompensa acumulada a lo largo del tiempo.
+                    </p>
+                </div>
+                <div class="flex justify-center items-center p-4 card rounded-lg">
+                    <!-- Diagrama Técnico del Ciclo de RL -->
+                    <svg viewBox="0 0 400 220" class="w-full max-w-md">
+                        <defs>
+                            <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                <path d="M 0 0 L 10 5 L 0 10 z" fill="#e0e0ff" />
+                            </marker>
+                        </defs>
+                        <!-- Agente -->
+                        <rect x="20" y="80" width="100" height="60" rx="10" fill="#205096" stroke="#a5b4fc" stroke-width="2"/>
+                        <text x="70" y="115" font-size="18" fill="white" text-anchor="middle">Agente</text>
+                        <!-- Entorno -->
+                        <rect x="280" y="80" width="100" height="60" rx="10" fill="#205096" stroke="#a5b4fc" stroke-width="2"/>
+                        <text x="330" y="115" font-size="18" fill="white" text-anchor="middle">Entorno</text>
+                        <!-- Flecha Acción -->
+                        <path d="M 125 100 Q 200 60 275 90" stroke="#facc15" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+                        <text x="200" y="65" font-size="14" fill="#facc15" text-anchor="middle">Acción (A_t)</text>
+                        <!-- Flecha Estado/Recompensa -->
+                        <path d="M 275 130 Q 200 180 125 120" stroke="#a5b4fc" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+                        <text x="200" y="175" font-size="14" fill="#a5b4fc" text-anchor="middle">Estado (S_t+1) + Recompensa (R_t+1)</text>
+                    </svg>
+                </div>
+            </div>
+            
+            <h3 class="text-2xl font-bold text-center mt-12 mb-6 text-yellow-300">Componentes Fundamentales del Modelo</h3>
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="card p-6 rounded-lg text-center">
+                    <span class="text-5xl mb-4 block">🤖</span>
+                    <h4 class="text-xl font-semibold mb-2 text-white">Agente</h4>
+                    <p>La entidad computacional que toma decisiones. En esta implementación, es la lógica que controla a los avatares 🐭, 🐰, o 🐝.</p>
+                </div>
+                <div class="card p-6 rounded-lg text-center">
+                    <span class="text-5xl mb-4 block">🗺️</span>
+                    <h4 class="text-xl font-semibold mb-2 text-white">Entorno</h4>
+                    <p>El sistema con el que el agente interactúa. Aquí, es la estructura del laberinto, que define los estados posibles y las transiciones entre ellos.</p>
+                </div>
+                <div class="card p-6 rounded-lg text-center">
+                    <span class="text-5xl mb-4 block">🕹️</span>
+                    <h4 class="text-xl font-semibold mb-2 text-white">Acción</h4>
+                    <p>El conjunto de operaciones que el agente puede ejecutar. En este caso, un conjunto discreto de cuatro acciones: mover arriba, abajo, izquierda o derecha.</p>
+                </div>
+                <div class="card p-6 rounded-lg text-center">
+                    <span class="text-5xl mb-4 block">🏆</span>
+                    <h4 class="text-xl font-semibold mb-2 text-white">Recompensa</h4>
+                    <p>Una señal escalar que el entorno envía al agente como evaluación de su última acción. Es la base para la optimización de la política del agente.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sección de Parámetros -->
+        <section id="parametros" class="mb-16">
+            <h2 class="text-3xl font-bold text-center mb-8 text-yellow-300">Configuración de Parámetros del Modelo</h2>
+            <div class="space-y-4">
+                <!-- Acordeón de Recompensas -->
+                <div class="card rounded-lg">
+                    <button class="accordion-button w-full text-left p-4 font-semibold text-white text-lg flex justify-between items-center">
+                        <span>🎯 Función de Recompensa</span>
+                        <span class="transform transition-transform duration-300">+</span>
+                    </button>
+                    <div class="accordion-content px-4 pb-4">
+                        <p class="mb-2">La función de recompensa define el objetivo del problema. Su diseño es crítico para guiar al agente hacia el comportamiento deseado.</p>
+                        <ul class="list-disc list-inside space-y-2">
+                            <li><strong class="text-green-400">GOAL_REWARD = 100:</strong> Una recompensa positiva alta al alcanzar el estado objetivo (la salida del laberinto).</li>
+                            <li><strong class="text-red-400">WALL_PENALTY = -20:</strong> Una penalización negativa significativa por realizar una acción que resulta en una colisión con un muro.</li>
+                            <li><strong class="text-yellow-400">MOVE_REWARD = -0.01:</strong> Una pequeña penalización por cada paso. Esto introduce un costo temporal, incentivando al agente a encontrar la ruta más corta.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Acordeón de Q-Learning -->
+                <div class="card rounded-lg">
+                    <button class="accordion-button w-full text-left p-4 font-semibold text-white text-lg flex justify-between items-center">
+                        <span>🧠 Algoritmo Q-Learning</span>
+                        <span class="transform transition-transform duration-300">+</span>
+                    </button>
+                    <div class="accordion-content px-4 pb-4">
+                        <p class="mb-2">Se implementa el algoritmo Q-Learning, un método de RL sin modelo. Este busca aprender una función de valor acción-estado (Q-value) que estima la recompensa futura esperada al tomar una acción 'a' en un estado 's'.</p>
+                        <ul class="list-disc list-inside space-y-2">
+                            <li><strong class="text-cyan-400">LEARNING_RATE = 0.1 (Tasa de Aprendizaje α):</strong> Determina en qué medida la nueva información anula la información antigua. Un valor de 0.1 indica un aprendizaje gradual y estable.</li>
+                            <li><strong class="text-purple-400">DISCOUNT_FACTOR = 0.95 (Factor de Descuento γ):</strong> Pondera la importancia de las recompensas futuras. Un valor cercano a 1 (0.95) indica que el agente tiene una visión a largo plazo.</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Acordeón de Exploración -->
+                <div class="card rounded-lg">
+                    <button class="accordion-button w-full text-left p-4 font-semibold text-white text-lg flex justify-between items-center">
+                        <span>🧭 Política de Exploración (Epsilon-Greedy)</span>
+                        <span class="transform transition-transform duration-300">+</span>
+                    </button>
+                    <div class="accordion-content px-4 pb-4">
+                        <p class="mb-2">Para asegurar que el agente explore suficientemente el espacio de estados, se utiliza una política ε-greedy. Esta equilibra la explotación del conocimiento actual con la exploración de nuevas acciones.</p>
+                        <ul class="list-disc list-inside space-y-2">
+                            <li><strong class="text-pink-400">EPSILON_START = 1.0:</strong> El valor inicial de ε es 1.0, lo que significa que al principio, el 100% de las acciones son aleatorias (exploración pura).</li>
+                            <li><strong class="text-orange-400">EPSILON_DECAY = 0.995:</strong> Después de cada episodio, ε se multiplica por este factor, reduciendo gradualmente la probabilidad de exploración.</li>
+                            <li><strong class="text-teal-400">EPSILON_END = 0.01:</strong> El valor mínimo de ε es 0.01, asegurando que siempre haya una mínima probabilidad (1%) de exploración, incluso al final del entrenamiento.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sección de Lógica del Juego -->
+        <section id="logica" class="mb-16">
+            <h2 class="text-3xl font-bold text-center mb-8 text-yellow-300">Lógica de Ejecución y Simulación</h2>
+            <div class="space-y-6">
+                <div class="card p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-white">Ciclo de Entrenamiento (Episodios)</h3>
+                    <p>El entrenamiento se realiza a lo largo de **1000 episodios (EPISODES = 1000)**. Un episodio es un intento completo, desde el estado inicial hasta un estado terminal (meta o límite de pasos). Este número elevado de iteraciones es necesario para que la Q-Table converja a valores estables. Se visualizan los episodios **1, 50 y 200** como puntos de control para observar la evolución de la política del agente.</p>
+                </div>
+                 <div class="card p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-white">Límite de Pasos por Episodio</h3>
+                    <p>Para prevenir bucles infinitos durante la fase de exploración, cada episodio está limitado por un número máximo de pasos. Este se calcula dinámicamente con la fórmula:</p>
+                    <p class="code-snippet p-3 my-2 rounded-md font-mono text-sm">max_steps = width * height * 2</p>
+                    <p>Para los laberintos de 19x9, el límite es de **342 pasos**. Si el agente alcanza este límite, el episodio termina y se considera no resuelto.</p>
+                </div>
+                <div class="card p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-white">Selección de Entornos (Laberintos)</h3>
+                    <p>El sistema implementa una lógica de selección de laberintos para garantizar la exposición a todos los entornos al inicio:</p>
+                    <ul class="list-decimal list-inside mt-2">
+                        <li><strong>Primeras 3 Partidas:</strong> Se utiliza una cola pre-mezclada de los tres laberintos disponibles, asegurando que cada uno se juegue una vez sin repetición.</li>
+                        <li><strong>Partidas Subsecuentes:</strong> La selección del laberinto se realiza de forma uniformemente aleatoria entre los tres disponibles.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Sección de Código -->
+        <section id="codigo" class="mb-16">
+            <h2 class="text-3xl font-bold text-center mb-8 text-yellow-300">Estructura del Código Fuente</h2>
+            <div class="space-y-6">
+                <div class="card p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-white">Librerías Utilizadas</h3>
+                    <ul class="list-disc list-inside mt-2 space-y-1">
+                        <li><strong>Pygame:</strong> Utilizada para la creación de la interfaz gráfica, la renderización del laberinto, el manejo de eventos de teclado y el control del tiempo.</li>
+                        <li><strong>NumPy:</strong> Fundamental para la gestión eficiente de la Q-Table, que es una matriz numérica. Permite realizar operaciones matemáticas vectorizadas.</li>
+                        <li><strong>JSON:</strong> Se emplea para la serialización y deserialización de los datos de estadísticas y logs, permitiendo guardarlos y cargarlos de forma estructurada.</li>
+                        <li><strong>OS, sys, time, datetime, random, subprocess:</strong> Librerías estándar de Python para la interacción con el sistema operativo, manejo de tiempo, generación de números aleatorios y ejecución de procesos externos.</li>
+                    </ul>
+                </div>
+                <div class="card p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-white">Clase `Maze`</h3>
+                    <p>Abstrae el entorno del laberinto. Gestiona la representación del estado, las transiciones de estado y la función de recompensa. Su método principal, `step()`, procesa una acción del agente y devuelve el nuevo estado, la recompensa obtenida y una bandera booleana que indica si el estado es terminal.</p>
+                    <pre class="code-snippet p-3 mt-2 rounded-md font-mono">def step(self, state, action):
+    current_pos = self.get_pos_for_state(state)
+    new_pos = self._get_new_pos_from_action(current_pos, action)
+
+    if not (...condiciones de borde y pared...):
+        return state, WALL_PENALTY, False, "Collision"
+
+    if new_pos == self.goal_pos:
+        return self.get_state_for_pos(new_pos), GOAL_REWARD, True, "Goal"
+    
+    return self.get_state_for_pos(new_pos), MOVE_REWARD, False, "Move"</pre>
+                </div>
+                 <div class="card p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-white">Clase `Agent`</h3>
+                    <p class="mb-2">Implementa la lógica del agente de RL. Su componente central es la **Q-Table**, una matriz que almacena el valor esperado de cada acción en cada estado del laberinto. Los métodos principales son:</p>
+                    <ul class="list-disc list-inside space-y-2">
+                        <li><strong>choose_action():</strong> Implementa la política **ε-greedy**. Con una probabilidad ε, elige una acción al azar (exploración). Con probabilidad 1-ε, elige la mejor acción conocida según la Q-Table (explotación).</li>
+                        <li><strong>learn():</strong> Aplica la regla de actualización de Q-Learning. Después de cada acción, ajusta el valor en la Q-Table para reflejar la recompensa obtenida y el valor máximo del nuevo estado, "refinando" así el conocimiento del agente.</li>
+                    </ul>
+                     <pre class="code-snippet p-3 mt-2 rounded-md font-mono">def learn(self, state, action, reward, next_state):
+    old_value = self.q_table[state, action]
+    next_max = np.max(self.q_table[next_state, :])
+    new_value = old_value + LEARNING_RATE * (reward + DISCOUNT_FACTOR * next_max - old_value)
+    self.q_table[state, action] = new_value</pre>
+                </div>
+                 <div class="card p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-white">Clase `Game`</h3>
+                    <p>Actúa como el controlador principal de la simulación. Gestiona la inicialización de Pygame, el bucle principal del menú, la orquestación del ciclo de entrenamiento de 1000 episodios y la ejecución de la política aprendida. También invoca los módulos de registro de datos.</p>
+                    <pre class="code-snippet p-3 mt-2 rounded-md font-mono">def run_game(self, maze_info, maze_name):
+    ...
+    agent = Agent(...)
+    for episode in range(1, EPISODES + 1):
+        # Bucle de entrenamiento silencioso
+        while not done:
+            action = agent.choose_action(state)
+            next_state, reward, done, _ = maze.step(state, action)
+            agent.learn(state, action, reward, next_state)
+            ...
+        agent.decay_epsilon()
+    ...
+    # Ejecución final con la política aprendida
+    final_run_data = self.run_single_episode(..., deterministic=True, ...)</pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sección de Salida -->
+        <section id="salida">
+            <h2 class="text-3xl font-bold text-center mb-8 text-yellow-300">Generación de Resultados y Estadísticas</h2>
+            <div class="grid md:grid-cols-2 gap-8">
+                <div class="card p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-white">Estructura del Archivo JSON</h3>
+                    <p>Al finalizar cada partida, se genera o actualiza un archivo `.json` que sirve como base de datos. A continuación se muestra una simulación de su estructura:</p>
+                    <div id="json-sim-container" class="json-sim mt-2"></div>
+                </div>
+                <div class="card p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-white">Generación de la Imagen de Salida</h3>
+                    <p>Tras la finalización del entrenamiento, se ejecuta una simulación final utilizando la política óptima aprendida (explotación pura). Al concluir esta simulación, se realiza una captura de la ventana de Pygame.</p>
+                    <p class="mt-2">Esta imagen, guardada en formato `.png`, sirve como evidencia visual del rendimiento del agente, mostrando la trayectoria final que este determinó como la más eficiente.</p>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        document.querySelectorAll('.accordion-button').forEach(button => {
+            button.addEventListener('click', () => {
+                const content = button.nextElementSibling;
+                button.classList.toggle('active');
+                const icon = button.querySelector('span:last-child');
+                if (content.style.maxHeight) {
+                    content.style.maxHeight = null;
+                    icon.style.transform = 'rotate(0deg)';
+                } else {
+                    content.style.maxHeight = content.scrollHeight + "px";
+                    icon.style.transform = 'rotate(45deg)';
+                } 
+            });
+        });
+
+        // Simulación de JSON
+        const jsonContainer = document.getElementById('json-sim-container');
+        const lines = [
+            `{`,
+            `  <span class="key">"estadisticas_por_laberinto"</span>: { ... },`,
+            `  <span class="key">"historial_partidas"</span>: [`,
+            `    {`,
+            `      <span class="key">"partida_numero"</span>: <span class="number">1</span>,`,
+            `      <span class="key">"laberinto"</span>: <span class="string">"Ayuda_al_raton..."</span>,`,
+            `      <span class="key">"resumen_resultado"</span>: { ... },`,
+            `      <span class="key">"detalle_aprendizaje"</span>: {`,
+            `        <span class="key">"intento_1"</span>: { <span class="comment">// Log del primer intento...</span> },`,
+            `        <span class="key">"intento_50"</span>: { <span class="comment">// Log del intento 50...</span> }`,
+            `      }`,
+            `    }`,
+            `  ]`,
+            `}`
+        ];
+        
+        let lineIndex = 0;
+        function typeLine() {
+            if (lineIndex < lines.length) {
+                jsonContainer.innerHTML += lines[lineIndex] + '\n';
+                lineIndex++;
+                setTimeout(typeLine, 300);
+            }
+        }
+        typeLine();
+    </script>
+
+</body>
+</html>
